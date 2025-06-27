@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Car Price Predictor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet"
+          href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"
+          crossorigin="anonymous">
+</head>
+
+<body class="bg-dark text-light">
+
+
+<div class="container my-5">
+    <div class="card shadow-lg">
+        <div class="card-header text-center">
+            <h2 class="text-info">🚗 Car Price Predictor</h2>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ messages[0] }}
+            <button type="button" class="close" data-dismiss="alert">
+                <span>&times;</span>
+            </button>
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <div class="card-body">
+            <p class="text-center text-danger font-weight-bold" style="font-size: 1.1rem;">
+            Fill in the details below and let CarBot predict your vehicle's selling price.
+            </p>
+
+            <form method="post" name="Modelform">
+                <div class="form-group">
+                    <label for="company" style="color: #ff4c4c; font-weight: 600;">Select the company</label>
+                    <select class="form-control" id="company" name="company" onchange="load_car_models(this.id,'car_models')" required>
+                        {% for company in companies %}
+                        <option value="{{ company }}">{{ company }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="car_models" style="color: #ff4c4c; font-weight: 600;">Select the model</label>
+                    <select class="form-control" id="car_models" name="car_models" required></select>
+                </div>
+
+                <div class="form-group">
+                    <label for="year" style="color: #ff4c4c; font-weight: 600;">Select year of purchase</label>
+                    <select class="form-control" id="year" name="year" required>
+                        {% for year in years %}
+                        <option value="{{ year }}">{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="fuel_type" style="color: #ff4c4c; font-weight: 600;">Select fuel type</label>
+                    <select class="form-control" id="fuel_type" name="fuel_type" required>
+                        {% for fuel in fuel_types %}
+                        <option value="{{ fuel }}">{{ fuel }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="kmsSlider" style="color: #ff4c4c; font-weight: 600;">KMs Driven: <span id="kmsValue">0</span> km</label>
+                    <input type="range" class="form-control-range" id="kmsSlider" name="kilo_driven" min="0" max="300000" step="1000" value="0"
+                           oninput="updateKmsValue(this.value)">
+                </div>
+
+                <div class="form-group">
+                    <label for="priceSlider" style="color: #ff4c4c; font-weight: 600;">Expected Price: ₹<span id="priceValue">500000</span></label>
+                    <input type="range" class="form-control-range" id="priceSlider" name="price" min="50000" max="2000000" step="10000" value="500000"
+                           oninput="updatePriceValue(this.value)">
+                </div>
+
+                <div class="form-group text-center">
+                    <button type="submit" class="btn btn-info px-4" onclick="send_data()">Predict Price</button>
+                </div>
+            </form>
+
+            <div class="text-center mt-3">
+                <div class="prediction-box">
+                <h4><span>Prediction: ₹<span id="prediction"></span></span></h4>
+
+            </div>
+
+            </div>
+        </div>
+
+        <div class="card-footer text-center">
+            <a href="/add_car" class="btn btn-outline-success btn-sm">➕ Add Car</a>
+            <a href="/delete_car" class="btn btn-outline-danger btn-sm">🗑️ Delete Car</a>
+            <a href="/retrain" class="btn btn-outline-warning btn-sm">🔁 Retrain Model</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    function load_car_models(company_id, car_model_id) {
+        var company = document.getElementById(company_id);
+        var car_model = document.getElementById(car_model_id);
+        car_model.innerHTML = "";
+        {% for company in companies %}
+        if (company.value === "{{ company }}") {
+            {% for model in car_models %}
+            {% if company in model %}
+            var newOption = document.createElement("option");
+            newOption.value = "{{ model }}";
+            newOption.innerHTML = "{{ model }}";
+            car_model.options.add(newOption);
+            {% endif %}
+            {% endfor %}
+        }
+        {% endfor %}
+    }
+
+    function send_data() {
+        event.preventDefault();
+        var fd = new FormData(document.querySelector('form'));
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/predict', true);
+        document.getElementById('prediction').innerHTML = "Wait! Predicting Price...";
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                animatePrediction(xhr.responseText);
+
+            }
+        };
+        xhr.send(fd);
+    }
+
+    function updateKmsValue(val) {
+        document.getElementById('kmsValue').textContent = parseInt(val).toLocaleString();
+    }
+
+    function updatePriceValue(val) {
+        document.getElementById('priceValue').textContent = parseInt(val).toLocaleString();
+    }
+
+    window.onload = function () {
+        updateKmsValue(document.getElementById("kmsSlider").value);
+        updatePriceValue(document.getElementById("priceSlider").value);
+    };
+
+    function animatePrediction(result) {
+    const target = document.getElementById('prediction');
+    target.innerHTML = "";
+
+    let i = 0;
+    const text = parseFloat(result).toFixed(2);
+    const typingSpeed = 60;
+
+    const typer = setInterval(() => {
+        if (i <= text.length) {
+            target.textContent = text.substring(0, i);
+            i++;
+        } else {
+            clearInterval(typer);
+        }
+    }, typingSpeed);
+}
+
+</script>
+
+<footer class="text-center mt-5 text-muted small">
+  <p>Made by Yash Vardhan Lawaniya & Shiv Kumar; Powered by Machine Learning</p>
+</footer>
+
+
+</body>
+</html>
